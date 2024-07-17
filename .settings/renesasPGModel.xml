@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rl78LlvmProjectGenerationModel>
+    <fProjectTypeId>GCC Project Mode</fProjectTypeId>
+    <fEndian>LITTLE</fEndian>
+    <stackLimit>false</stackLimit>
+    <codeGeneration>true</codeGeneration>
+    <newlib>false</newlib>
+    <pbuild>false</pbuild>
+</rl78LlvmProjectGenerationModel>

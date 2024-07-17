@@ -1,0 +1,7 @@
+.cache/
+.settings/
+Debug/
+Release/
+build/
+rl78_geiger Debug.launch
+
