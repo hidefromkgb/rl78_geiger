@@ -182,10 +182,10 @@ def fir_adaptive(array, method=1):
 
 def kalman(array):
     output = []
-    Q = 0.08  # Process noise covariance, lower - smoother (def: 0.1)
+    Q = 0.04  # Process noise covariance, lower - smoother (def: 0.1)
     R = 5     # Measurement noise covariance, higher - smoother (def: 1.0)
 
-    r_k = 0   # Initialize dose rate estimate
+    r_k = 0.5   # Initialize dose rate estimate
     P_k = 1.0 # Initialize error covariance
 
     for z_k in array:
@@ -230,6 +230,27 @@ def glr(array):
     # Too complex for selected microcontroller
     pass
 
+def kalman_x_cst(array):
+    min_alpha = 0.125
+    max_alpha = 1.0
+    peak_share = 0.25
+    window_size = 64
+    window = np.full(window_size, 1.0 / peak_share)
+
+    c = cst_mcu(array)
+    k = kalman(c)
+    output = []
+
+    total = window_size / peak_share
+    for i, e in enumerate(array):
+        total += e - window[i % window_size]
+        window[i % window_size] = e
+        alpha = 1 - min(peak_share * total / window_size, 1)
+        alpha = min_alpha + alpha * (max_alpha - min_alpha)
+        output += [k[i] * alpha + c[i] * (1 - alpha)]
+
+    return output
+
 
 
 def dump(array):
@@ -259,9 +280,10 @@ def refresh():
     if 'b' in plots: plots['b'][0].set_ydata(sma_adaptive(src_array))
     if 'c' in plots: plots['c'][0].set_ydata(sma(src_array))
     if 'd' in plots: plots['d'][0].set_ydata(ema(src_array))
-    if 'e' in plots: plots['e'][0].set_ydata(rc_filter(src_array, rc))
-    if 'f' in plots: plots['f'][0].set_ydata(kalman(src_array))
-    if 'g' in plots: plots['g'][0].set_ydata(alpha_beta(src_array))
+    if 'e' in plots: plots['e'][0].set_ydata(rc_filter(cst_mcu(src_array), rc))
+    if 'f' in plots: plots['f'][0].set_ydata(kalman(cst_mcu(src_array)))
+    if 'F' in plots: plots['F'][0].set_ydata(kalman_x_cst(src_array))
+    if 'g' in plots: plots['g'][0].set_ydata(alpha_beta(cst_mcu(src_array)))
     if 'h' in plots: plots['h'][0].set_ydata(cst(src_array))
     if 'i' in plots: plots['i'][0].set_ydata(cst_mcu(src_array))
 
@@ -281,6 +303,12 @@ ref_array = np.concatenate((
     np.fromfunction(lambda i: 300/(np.sqrt(2 * np.pi)) * np.exp(-((i - 60)/15)**2 / 2), (120,)),
     np.fromfunction(lambda i: 300/(np.sqrt(2 * np.pi)) * np.exp(-((i - 60)/15)**2 / 2), (120,)),
     np.full(120, 0.33),
+    np.full(120, 0.66),
+    np.full(120, 0.99),
+    np.fromfunction(lambda i: 20/(np.sqrt(2 * np.pi)) * np.exp(-((i - 60)/15)**2 / 2) + 0.99, (120,)),
+    np.full(120, 0.99),
+    np.full(120, 0.66),
+    np.full(120, 0.33),
 ))
 
 #ref_array += 8000
@@ -294,11 +322,12 @@ plots = {
     #'b': ax.plot(ref_array, linestyle='-', color='#00C000', label = 'Adaptive SMA'),
     #'c': ax.plot(ref_array, linestyle='-', color='#0080FF', label = 'SMA'),
     #'d': ax.plot(ref_array, linestyle='-', color='#00FF00', label = 'EWMA'),
-    'e': ax.plot(ref_array, linestyle='-', color='#FF00FF', label = f'RC, τ={rc}s'),
-    #'f': ax.plot(ref_array, linestyle='-', color='#8080FF', label = 'Kalman'),
+    #'e': ax.plot(ref_array, linestyle='-', color='#FF00FF', label = f'RC, τ={rc}s'),
+    'f': ax.plot(ref_array, linestyle='-', color='#8080FF', label = 'Kalman × CST'),
     #'g': ax.plot(ref_array, linestyle='-', color='#FFC060', label = 'Alpha-beta'),
-    'h': ax.plot(ref_array, linestyle='-', color='#FF0000', label = 'CST'),
-    'i': ax.plot(ref_array, linestyle='-', color='#0080FF', label = 'CST optimized'),
+    #'h': ax.plot(ref_array, linestyle='-', color='#FF0000', label = 'CST'),
+    'i': ax.plot(ref_array, linestyle='-', color='#FFC060', label = 'CST_optimized'),
+    'F': ax.plot(ref_array, linestyle='-', color='#FF0000', label = 'CST + Kalman × CST'),
 }
 
 mul = 2
